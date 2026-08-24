@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "mc6847_charset.h"
+
 #include "screen.h"
 #include <map>
 
@@ -37,14 +39,14 @@ class mc6847_friend_device : public device_t, public device_video_interface
 {
 public:
 	// video mode constants
-	static constexpr uint8_t MODE_AG      = 0x80;
-	static constexpr uint8_t MODE_GM2     = 0x40;
-	static constexpr uint8_t MODE_GM1     = 0x20;
-	static constexpr uint8_t MODE_GM0     = 0x10;
-	static constexpr uint8_t MODE_CSS     = 0x08;
-	static constexpr uint8_t MODE_AS      = 0x04;
-	static constexpr uint8_t MODE_INTEXT  = 0x02;
-	static constexpr uint8_t MODE_INV     = 0x01;
+	static constexpr uint8_t MODE_AG      = mc6847_charset::MODE_AG;
+	static constexpr uint8_t MODE_GM2     = mc6847_charset::MODE_GM2;
+	static constexpr uint8_t MODE_GM1     = mc6847_charset::MODE_GM1;
+	static constexpr uint8_t MODE_GM0     = mc6847_charset::MODE_GM0;
+	static constexpr uint8_t MODE_CSS     = mc6847_charset::MODE_CSS;
+	static constexpr uint8_t MODE_AS      = mc6847_charset::MODE_AS;
+	static constexpr uint8_t MODE_INTEXT  = mc6847_charset::MODE_INTEXT;
+	static constexpr uint8_t MODE_INV     = mc6847_charset::MODE_INV;
 
 	typedef device_delegate<uint8_t (uint8_t ch, int line)> get_char_rom_delegate;
 
@@ -76,7 +78,7 @@ protected:
 	static uint8_t simplify_mode(uint8_t data, uint8_t mode)
 	{
 		// simplifies MC6847 modes to drop mode flags that are not significant
-		return mode & ~((mode & MODE_AG) ? (MODE_AS | MODE_INV) : 0);
+		return mc6847_charset::simplify_mode(mode);
 	}
 
 	// internal class that represents a MC6847 character map
@@ -140,16 +142,13 @@ protected:
 		entry m_entries[128];
 		bool m_is_mc6847t1;
 
-		// text font data calculated on startup
-		void generate_semigraphics_font(uint8_t output[], size_t char_count, size_t row_height);
-
 		uint8_t m_text_fontdata[96][12]{};
 		uint8_t m_text_fontdata_inverse[64*12];
 		uint8_t m_text_fontdata_lower_case[64*12];
 		uint8_t m_text_fontdata_lower_case_inverse[64*12];
 		uint8_t m_stripes[128*12];
-		uint8_t m_semigraphics4_fontdata8x12[16 * 12];
-		uint8_t m_semigraphics6_fontdata8x12[64 * 12];
+		uint8_t m_semigraphics4_fontdata8x12[mc6847_charset::SEMIGRAPHICS4_GLYPH_COUNT * 12];
+		uint8_t m_semigraphics6_fontdata8x12[mc6847_charset::SEMIGRAPHICS6_GLYPH_COUNT * 12];
 
 		// optimized function that tests a single bit
 		ATTR_FORCE_INLINE pixel_t bit_test(uint8_t data, int shift, pixel_t color_0, pixel_t color_1)

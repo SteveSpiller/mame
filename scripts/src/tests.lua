@@ -47,11 +47,17 @@ project("mametests")
 
 	includedirs {
 		MAME_DIR .. "3rdparty/catch/single_include",
+		MAME_DIR .. "src/devices",
 		MAME_DIR .. "src/osd",
 		MAME_DIR .. "src/emu",
 		MAME_DIR .. "src/lib/util",
 		ext_includedir("expat"),
 		ext_includedir("zlib"),
+	}
+
+	-- production code exercised by the tests
+	files {
+		MAME_DIR .. "src/devices/video/mc6847_charset.h",
 	}
 
 	files {
@@ -60,5 +66,7 @@ project("mametests")
 		MAME_DIR .. "tests/lib/util/options.cpp",
 		MAME_DIR .. "tests/emu/attotime.cpp",
 		MAME_DIR .. "tests/emu/video/rgbutil.cpp",
+		MAME_DIR .. "tests/emu/video/mc6847.cpp",
+		MAME_DIR .. "tests/emu/video/mc6847_charset_fixture.h",
 	}
 

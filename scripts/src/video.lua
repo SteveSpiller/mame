@@ -926,6 +926,7 @@ if VIDEOS["MC6847"] then
 	files {
 		MAME_DIR .. "src/devices/video/mc6847.cpp",
 		MAME_DIR .. "src/devices/video/mc6847.h",
+		MAME_DIR .. "src/devices/video/mc6847_charset.h",
 	}
 end
 

@@ -724,40 +724,8 @@ void mc6847_base_device::device_start()
 
 void mc6847_base_device::load_font(uint8_t (*textfont)[96][12])
 {
-	const uint8_t *raw_rom = m_font_rom_region->base();
-
 	// vdg (internal 64 character compact 5x7 font)
-	constexpr int NUM_CHARS	 = 64;
-	constexpr int LINE_STRIDE = NUM_CHARS / 8;
-	constexpr int GLYPH_ROWS = 7;
-	constexpr int GLYPH_COLS = 5;
-	constexpr int CHAR_STRIDE = LINE_STRIDE * GLYPH_ROWS;
-	constexpr int GLYPH_BOTTOM_ROW = 28;
-
-	// characters 64-95 mirror 0-31 (matching original table layout)
-	for (int ch = 0; ch < 96; ch++)
-	{
-		int c = ch % NUM_CHARS;
-		uint8_t *out = (*textfont)[ch];
-
-		int byte_col  = c >> 3;
-		int bit_shift = 7 - (c & 7);
-		int base_index = GLYPH_BOTTOM_ROW * LINE_STRIDE + byte_col;
-
-		for (int r = 0; r < GLYPH_ROWS; r++, base_index += LINE_STRIDE)
-		{
-			uint8_t glyph_byte = 0;
-			int byte_index = base_index;
-
-			for (int p = 0; p < GLYPH_COLS; p++, byte_index -= CHAR_STRIDE)
-			{
-				int pixel = (raw_rom[byte_index] >> bit_shift) & 1;
-				glyph_byte |= (pixel << (5 - p));
-			}
-
-			out[3 + r] = glyph_byte;
-		}
-	}
+	mc6847_charset::expand_internal_rom(m_font_rom_region->base(), *textfont);
 }
 
 
@@ -1114,65 +1082,58 @@ void mc6847_friend_device::character_map::setup_font()
 		}
 	}
 	for (int i = 0; i < 128*12; i++)
-		m_stripes[i] = ~(i / 12);
+		m_stripes[i] = mc6847_charset::stripes_row(uint8_t(i / 12));
 	// loop through all modes
 	for (int mode = 0; mode < std::size(m_entries); mode++)
 	{
+		mc6847_charset::mode_info const decoded =
+				mc6847_charset::decode_mode(uint8_t(mode), m_is_mc6847t1);
 		const uint8_t *fontdata;
-		uint8_t character_mask;
 		uint8_t color_shift_0 = 0;
 		uint8_t color_shift_1 = 0;
 		uint8_t color_mask_0 = 0x00;
 		uint8_t color_mask_1 = 0x00;
 		uint16_t color_base_0;
 		uint16_t color_base_1;
-		if ((mode & ((m_is_mc6847t1 ? 0 : MODE_INTEXT) | MODE_AS)) == MODE_AS)
+		switch (decoded.m_glyph)
 		{
-			// semigraphics 4
-			fontdata = m_semigraphics4_fontdata8x12;
-			character_mask      = 0x0f;
+		case mc6847_charset::glyph::SEMIGRAPHICS4:
+			fontdata            = m_semigraphics4_fontdata8x12;
 			color_base_0        = 8;
 			color_base_1        = 0;
 			color_shift_1       = 4;
 			color_mask_1        = 0x07;
-		}
-		else if (((mode & (MODE_INTEXT | MODE_AS)) == (MODE_INTEXT | MODE_AS)) && !m_is_mc6847t1)
-		{
-			// semigraphics 6
+			break;
+
+		case mc6847_charset::glyph::SEMIGRAPHICS6:
 			fontdata            = m_semigraphics6_fontdata8x12;
-			character_mask      = 0x3f;
 			color_base_0        = 8;
 			color_base_1        = mode & MODE_CSS ? 4 : 0;
 			color_shift_1       = 6;
 			color_mask_1        = 0x03;
-		}
-		else if (((mode & (MODE_INTEXT | MODE_AS)) == MODE_INTEXT) && !m_is_mc6847t1)
-		{
+			break;
+
+		case mc6847_charset::glyph::STRIPES:
 			// so-called "stripe" mode - this is when INTEXT is specified but we don't have
 			// an external ROM nor are we on an MC6847T1
 			fontdata            = m_stripes;
-			character_mask      = 0x7f;
 			color_base_0        = (mode & MODE_CSS ? 14 : 12);
 			color_base_1        = (mode & MODE_CSS ? 15 : 13);
-		}
-		else
-		{
-			// text
-			bool is_lower_case  = m_is_mc6847t1 && ((mode & MODE_INV) == 0) && (mode & MODE_GM0);
-			bool is_inverse1    = (mode & MODE_INV) ? true : false;
-			bool is_inverse2    = m_is_mc6847t1 && (mode & MODE_GM1);
-			bool is_inverse     = (is_inverse1 && !is_inverse2) || (!is_inverse1 && is_inverse2);
-			fontdata            = is_inverse
-									? (is_lower_case ? m_text_fontdata_lower_case_inverse : m_text_fontdata_inverse)
-									: (is_lower_case ? m_text_fontdata_lower_case : m_text_fontdata[0]);
-			character_mask      = 0x3f;
+			break;
+
+		default:
+			// text; graphics modes never reach the character generator
+			fontdata            = decoded.m_invert
+									? (decoded.m_lower_case ? m_text_fontdata_lower_case_inverse : m_text_fontdata_inverse)
+									: (decoded.m_lower_case ? m_text_fontdata_lower_case : m_text_fontdata[0]);
 			color_base_0        = (mode & MODE_CSS ? 14 : 12);
 			color_base_1        = (mode & MODE_CSS ? 15 : 13);
+			break;
 		}
 		// populate the entry
 		memset(&m_entries[mode], 0, sizeof(m_entries[mode]));
 		m_entries[mode].m_fontdata          = fontdata;
-		m_entries[mode].m_character_mask    = character_mask;
+		m_entries[mode].m_character_mask    = decoded.m_character_mask;
 		m_entries[mode].m_color_shift_0     = color_shift_0;
 		m_entries[mode].m_color_shift_1     = color_shift_1;
 		m_entries[mode].m_color_mask_0      = color_mask_0;
@@ -1188,32 +1149,15 @@ void mc6847_friend_device::character_map::setup_font()
 
 void mc6847_friend_device::character_map::setup_semigraphics()
 {
-	generate_semigraphics_font(m_semigraphics4_fontdata8x12, 16, 6);
-	generate_semigraphics_font(m_semigraphics6_fontdata8x12, 64, 4);
+	mc6847_charset::generate_semigraphics(
+			m_semigraphics4_fontdata8x12,
+			mc6847_charset::SEMIGRAPHICS4_GLYPH_COUNT,
+			mc6847_charset::SEMIGRAPHICS4_ROW_HEIGHT);
+	mc6847_charset::generate_semigraphics(
+			m_semigraphics6_fontdata8x12,
+			mc6847_charset::SEMIGRAPHICS6_GLYPH_COUNT,
+			mc6847_charset::SEMIGRAPHICS6_ROW_HEIGHT);
 }
-
-
-//-------------------------------------------------
-//  reusable runtime generator logic
-//-------------------------------------------------
-
-void mc6847_friend_device::character_map::generate_semigraphics_font(uint8_t output[], size_t char_count, size_t row_height)
-{
-	uint8_t* dest = output;
-
-	for (size_t i = 0; i < char_count; i++)
-	{
-		for (size_t r = 0; r < 12; r++)
-		{
-			size_t slice = (11 - r) / row_height;
-			uint8_t right = (i >> (slice * 2)) & 1;
-			uint8_t left = (i >> (slice * 2 + 1)) & 1;
-
-			*dest++ = (left ? 0xf0 : 0x00) | (right ? 0x0f : 0x00);
-		}
-	}
-}
-
 
 
 //**************************************************************************
@@ -1452,15 +1396,7 @@ mc6847t1_device::mc6847t1_device(const machine_config &mconfig, const char *tag,
 void mc6847t1_device::load_font(uint8_t (*textfont)[96][12])
 {
 	// mc6847t1 (recreated 8x12 font)
-	const uint8_t *raw_rom = m_font_rom_region->base();
-
-	for (int i = 0; i < 96; i++)
-	{
-		for (int j = 0; j < 12; j++)
-		{
-			(*textfont)[i][j] = raw_rom[i*12+j];
-		}
-	}
+	mc6847_charset::expand_t1_rom(m_font_rom_region->base(), *textfont);
 }
 
 uint8_t mc6847t1_device::border_value(uint8_t mode)
