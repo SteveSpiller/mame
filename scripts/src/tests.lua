@@ -57,6 +57,17 @@ project("mametests")
 
 	-- production code exercised by the tests
 	files {
+		MAME_DIR .. "src/devices/video/cocovga_artifact.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_artifact.h",
+		MAME_DIR .. "src/devices/video/cocovga_capture.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_capture.h",
+		MAME_DIR .. "src/devices/video/cocovga_charrom.h",
+		MAME_DIR .. "src/devices/video/cocovga_core.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_core.h",
+		MAME_DIR .. "src/devices/video/cocovga_extended.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_extended.h",
+		MAME_DIR .. "src/devices/video/cocovga_renderer.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_renderer.h",
 		MAME_DIR .. "src/devices/video/mc6847_charset.h",
 	}
 
@@ -66,6 +77,16 @@ project("mametests")
 		MAME_DIR .. "tests/lib/util/options.cpp",
 		MAME_DIR .. "tests/emu/attotime.cpp",
 		MAME_DIR .. "tests/emu/video/rgbutil.cpp",
+		MAME_DIR .. "tests/emu/video/cocovga_artifact_test.cpp",
+		MAME_DIR .. "tests/emu/video/cocovga_artifact_vectors.h",
+		MAME_DIR .. "tests/emu/video/cocovga_capture_test.cpp",
+		MAME_DIR .. "tests/emu/video/cocovga_charrom_oracle.h",
+		MAME_DIR .. "tests/emu/video/cocovga_core_test.cpp",
+		MAME_DIR .. "tests/emu/video/cocovga_extended_test.cpp",
+		MAME_DIR .. "tests/emu/video/cocovga_integration_test.cpp",
+		MAME_DIR .. "tests/emu/video/cocovga_lowercase_oracle.h",
+		MAME_DIR .. "tests/emu/video/cocovga_renderer_test.cpp",
+		MAME_DIR .. "tests/emu/video/cocovga_test_helpers.h",
 		MAME_DIR .. "tests/emu/video/mc6847.cpp",
 		MAME_DIR .. "tests/emu/video/mc6847_charset_fixture.h",
 	}
