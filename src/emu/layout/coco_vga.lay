@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!--
+license:CC0-1.0
+copyright-holders:Stephen Spiller
+
+The board is installed in the video display generator socket of the machine
+it enhances, so its own 640x480 output and the machine's composite output are
+both available.  The machine's screen is referenced by absolute tag because a
+socket board cannot know how deeply it is nested below the machine root.
+-->
+<mamelayout version="2">
+
+	<view name="Composite">
+		<screen tag=":screen">
+			<bounds x="0" y="0" width="4" height="3" />
+		</screen>
+		<collection name="Hidden CoCoVGA target" visible="no">
+			<screen tag="screen">
+				<!-- Extra scale headroom keeps the hidden screen from increasing Composite's minimum target size. -->
+				<!-- If enabled manually, place it beside rather than over the composite display. -->
+				<bounds x="4.25" y="0" width="16" height="12" />
+			</screen>
+		</collection>
+	</view>
+
+	<view name="CoCoVGA">
+		<screen tag="screen">
+			<bounds x="0" y="0" width="4" height="3" />
+		</screen>
+	</view>
+
+	<view name="Composite + CoCoVGA">
+		<screen tag=":screen">
+			<bounds x="0" y="0" width="4" height="3" />
+		</screen>
+		<screen tag="screen">
+			<bounds x="4" y="0" width="4" height="3" />
+		</screen>
+	</view>
+
+</mamelayout>
