@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Nathan Woods
+// copyright-holders:Nathan Woods,Stephen Spiller
 /***************************************************************************
 
     coco12.cpp
@@ -110,6 +110,64 @@ void deluxecoco_state::deluxecoco_io1(address_map &map)
 	map(0x10, 0x10).w(FUNC(deluxecoco_state::ff30_write));
 	map(0x18, 0x19).w(m_psg, FUNC(ay8913_device::data_address_w));
 	map(0x1c, 0x1f).rw(m_acia, FUNC(mos6551_device::read), FUNC(mos6551_device::write));
+}
+
+
+//**************************************************************************
+//  VDG SOCKET HOST INTERFACE
+//**************************************************************************
+
+uint8_t coco12_state::vdg_socket_sam_read(offs_t offset)
+{
+	uint8_t const data = sam_read(offset);
+	m_vdg_socket->sam_fetch(offset, data);
+	return data;
+}
+
+void coco12_state::vdg_socket_pia1_pb_w(uint8_t data)
+{
+	coco12_state::pia1_pb_w(data);
+	m_vdg_socket->mode_w(data);
+}
+
+void coco12_state::vdg_socket_horizontal_sync(int state)
+{
+	horizontal_sync(state);
+	m_vdg_socket->hs_w(state);
+}
+
+void coco12_state::vdg_socket_field_sync(int state)
+{
+	field_sync(state);
+	m_vdg_socket->fs_w(state);
+}
+
+uint32_t coco12_state::vdg_socket_screen_update(
+		screen_device &screen,
+		bitmap_rgb32 &bitmap,
+		const rectangle &cliprect)
+{
+	uint32_t const result = m_vdg->screen_update(screen, bitmap, cliprect);
+
+	// A board that took the machine's video over blanks the composite output.
+	if (m_vdg_socket->composite_output_active())
+		return result;
+
+	bitmap.fill(rgb_t::black(), cliprect);
+	return result;
+}
+
+void coco12_state::machine_reset()
+{
+	coco_state::machine_reset();
+
+	// The VDG has already reset, so an installed board can be told where its
+	// sync inputs stand.
+	if (m_vdg_socket)
+	{
+		m_vdg_socket->hs_w(m_vdg->hs_r());
+		m_vdg_socket->fs_w(m_vdg->fs_r());
+	}
 }
 
 
@@ -528,10 +586,28 @@ DEVICE_INPUT_DEFAULTS_END
 
 
 //-------------------------------------------------
+//  DEVICE_INPUT_DEFAULTS_START( cocovga_amc2 )
+//-------------------------------------------------
+
+static DEVICE_INPUT_DEFAULTS_START( cocovga_amc2 )
+	DEVICE_INPUT_DEFAULTS("config", 0x03, 0x00)
+DEVICE_INPUT_DEFAULTS_END
+
+
+//-------------------------------------------------
+//  DEVICE_INPUT_DEFAULTS_START( cocovga_t1 )
+//-------------------------------------------------
+
+static DEVICE_INPUT_DEFAULTS_START( cocovga_t1 )
+	DEVICE_INPUT_DEFAULTS("config", 0x03, 0x02)
+DEVICE_INPUT_DEFAULTS_END
+
+
+//-------------------------------------------------
 //  machine_config
 //-------------------------------------------------
 
-void coco12_state::coco(machine_config &config)
+void coco12_state::coco_base(machine_config &config)
 {
 	this->set_clock(XTAL(14'318'181) / 16);
 
@@ -632,6 +708,33 @@ void coco12_state::coco(machine_config &config)
 	COCO_VHD(config, m_vhd_1, m_maincpu);
 }
 
+//-------------------------------------------------
+//  add_vdg_socket - the official Color Computer
+//  1/2 fit their video display generator in a
+//  socket, so a board can be installed under it
+//-------------------------------------------------
+
+void coco12_state::add_vdg_socket(machine_config &config, const input_device_default *board_defaults)
+{
+	m_pia_1->writepb_handler().set(FUNC(coco12_state::vdg_socket_pia1_pb_w));
+	m_vdg->hsync_wr_callback().set(FUNC(coco12_state::vdg_socket_horizontal_sync));
+	m_vdg->fsync_wr_callback().set(FUNC(coco12_state::vdg_socket_field_sync));
+	m_vdg->input_callback().set(FUNC(coco12_state::vdg_socket_sam_read));
+	m_screen->set_screen_update(FUNC(coco12_state::vdg_socket_screen_update));
+
+	COCO_VDG_SOCKET(config, m_vdg_socket, coco_vdg_socket_devices, nullptr);
+
+	// CoCoVGA is sold in a variant for each VDG, so default the board model to
+	// the part this machine fits.
+	m_vdg_socket->set_option_device_input_defaults("cocovga", board_defaults);
+}
+
+void coco12_state::coco(machine_config &config)
+{
+	coco_base(config);
+	add_vdg_socket(config, DEVICE_INPUT_DEFAULTS_NAME(cocovga_amc2));
+}
+
 void coco12_state::cocoh(machine_config &config)
 {
 	coco(config);
@@ -642,7 +745,7 @@ void coco12_state::cocoh(machine_config &config)
 
 void deluxecoco_state::deluxecoco(machine_config &config)
 {
-	coco2b(config);
+	coco2b_base(config);
 
 	// Asynchronous Communications Interface Adapter
 	MOS6551(config, m_acia);
@@ -674,15 +777,21 @@ void deluxecoco_state::deluxecoco(machine_config &config)
 	TIMER(config, m_timer).configure_generic(FUNC(deluxecoco_state::perodic_timer));
 }
 
-void coco12_state::coco2b(machine_config &config)
+void coco12_state::coco2b_base(machine_config &config)
 {
-	coco(config);
+	coco_base(config);
 
 	MC6847T1(config.replace(), m_vdg, XTAL(14'318'181) / 4);
 	m_vdg->set_screen(m_screen);
 	m_vdg->hsync_wr_callback().set(FUNC(coco12_state::horizontal_sync));
 	m_vdg->fsync_wr_callback().set(FUNC(coco12_state::field_sync));
 	m_vdg->input_callback().set(FUNC(coco12_state::sam_read));
+}
+
+void coco12_state::coco2b(machine_config &config)
+{
+	coco2b_base(config);
+	add_vdg_socket(config, DEVICE_INPUT_DEFAULTS_NAME(cocovga_t1));
 }
 
 void coco12_state::coco2bh(machine_config &config)
@@ -695,28 +804,28 @@ void coco12_state::coco2bh(machine_config &config)
 
 void coco12_state::cp400(machine_config &config)
 {
-	coco(config);
+	coco_base(config);
 
 	m_cococart->set_default_option("cp450_fdc");
 }
 
 void coco12_state::t4426(machine_config &config)
 {
-	coco(config);
+	coco_base(config);
 
 	m_cococart->set_options(t4426_cart, "t4426", true); // This cart is fixed so no way to change it
 }
 
 void coco12_state::cd6809(machine_config &config)
 {
-	coco(config);
+	coco_base(config);
 
 	m_cococart->set_default_option("cd6809_fdc");
 }
 
 void coco12_state::ms1600(machine_config &config)
 {
-	coco(config);
+	coco_base(config);
 
 	m_sam->set_addrmap(3, &coco12_state::ms1600_rom2);
 }
@@ -829,8 +938,8 @@ COMP( 1985?, coco2b,     coco,   0,      coco2b,     coco,       coco12_state,  
 COMP( 19??,  coco2bh,    coco,   0,      coco2bh,    coco,       coco12_state,     empty_init, "Tandy Radio Shack",            "Color Computer 2B (HD6309)",          MACHINE_SUPPORTS_SAVE | MACHINE_UNOFFICIAL )
 COMP( 1983,  cp400,      coco,   0,      cp400,      coco,       coco12_state,     empty_init, "Prológica",                    "CP400",                               MACHINE_SUPPORTS_SAVE )
 COMP( 1985,  cp400c2,    coco,   0,      cp400,      cp400c2,    coco12_state,     empty_init, "Prológica",                    "CP400 Color II",                      MACHINE_SUPPORTS_SAVE )
-COMP( 1984,  mx1600,     coco,   0,      coco,       coco,       coco12_state,     empty_init, "Dynacom",                      "MX-1600",                             MACHINE_SUPPORTS_SAVE )
+COMP( 1984,  mx1600,     coco,   0,      coco_base,  coco,       coco12_state,     empty_init, "Dynacom",                      "MX-1600",                             MACHINE_SUPPORTS_SAVE )
 COMP( 1986,  t4426,      coco,   0,      t4426,      coco,       coco12_state,     empty_init, "Terco AB",                     "Terco 4426 CNC Programming station",  MACHINE_SUPPORTS_SAVE )
-COMP( 1983,  lzcolor64,  coco,   0,      coco,       coco,       coco12_state,     empty_init, "Novo Tempo / LZ Equipamentos", "Color64",                             MACHINE_SUPPORTS_SAVE )
+COMP( 1983,  lzcolor64,  coco,   0,      coco_base,  coco,       coco12_state,     empty_init, "Novo Tempo / LZ Equipamentos", "Color64",                             MACHINE_SUPPORTS_SAVE )
 COMP( 1983,  cd6809,     coco,   0,      cd6809,     coco,       coco12_state,     empty_init, "Codimex",                      "CD-6809",                             MACHINE_SUPPORTS_SAVE )
 COMP( 1987,  ms1600,     coco,   0,      ms1600,     coco,       coco12_state,     empty_init, "ILCE / SEP",                   "Micro-SEP 1600",                      MACHINE_SUPPORTS_SAVE )

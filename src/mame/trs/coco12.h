@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Nathan Woods
+// copyright-holders:Nathan Woods,Stephen Spiller
 /***************************************************************************
 
     coco12.h
@@ -14,6 +14,8 @@
 #pragma once
 
 #include "coco.h"
+
+#include "bus/coco/vdgsocket.h"
 
 #include "machine/6883sam.h"
 #include "machine/mos6551.h"
@@ -41,6 +43,7 @@ public:
 		: coco_state(mconfig, type, tag)
 		, m_sam(*this, "sam")
 		, m_vdg(*this, "vdg")
+		, m_vdg_socket(*this, "vdgsocket")
 	{
 	}
 
@@ -49,8 +52,10 @@ public:
 	void horizontal_sync(int state);
 	void field_sync(int state);
 
+	void coco_base(machine_config &config);
 	void coco(machine_config &config);
 	void cocoh(machine_config &config);
+	void coco2b_base(machine_config &config);
 	void coco2b(machine_config &config);
 	void coco2bh(machine_config &config);
 	void cp400(machine_config &config);
@@ -60,10 +65,19 @@ public:
 
 protected:
 	virtual void machine_start() override ATTR_COLD;
+	virtual void machine_reset() override ATTR_COLD;
 	void configure_sam();
+
+	void add_vdg_socket(machine_config &config, const input_device_default *board_defaults);
 
 	// PIA1
 	virtual void pia1_pb_w(uint8_t data) override;
+	void vdg_socket_pia1_pb_w(uint8_t data);
+
+	uint8_t vdg_socket_sam_read(offs_t offset);
+	void vdg_socket_horizontal_sync(int state);
+	void vdg_socket_field_sync(int state);
+	uint32_t vdg_socket_screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	sam6883_device &sam() { return *m_sam; }
 	required_device<sam6883_device> m_sam;
@@ -81,6 +95,7 @@ protected:
 
 protected:
 	required_device<mc6847_base_device> m_vdg;
+	optional_device<coco_vdg_socket_device> m_vdg_socket;
 };
 
 class deluxecoco_state : public coco12_state

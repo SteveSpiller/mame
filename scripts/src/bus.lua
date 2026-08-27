@@ -1704,6 +1704,7 @@ end
 ---------------------------------------------------
 --
 --@src/devices/bus/coco/cococart.h,BUSES["COCO"] = true
+--@src/devices/bus/coco/vdgsocket.h,BUSES["COCO"] = true
 ---------------------------------------------------
 if BUSES["COCO"] then
 	files {
@@ -1741,6 +1742,8 @@ if BUSES["COCO"] then
 		MAME_DIR .. "src/devices/bus/coco/coco_sym12.h",
 		MAME_DIR .. "src/devices/bus/coco/coco_t4426.cpp",
 		MAME_DIR .. "src/devices/bus/coco/coco_t4426.h",
+		MAME_DIR .. "src/devices/bus/coco/coco_vga.cpp",
+		MAME_DIR .. "src/devices/bus/coco/coco_vga.h",
 		MAME_DIR .. "src/devices/bus/coco/coco_wpk.cpp",
 		MAME_DIR .. "src/devices/bus/coco/coco_wpk.h",
 		MAME_DIR .. "src/devices/bus/coco/coco_wpk2p.cpp",
@@ -1769,6 +1772,16 @@ if BUSES["COCO"] then
 		MAME_DIR .. "src/devices/bus/coco/meb_intrf.h",
 		MAME_DIR .. "src/devices/bus/coco/meb_rtime.cpp",
 		MAME_DIR .. "src/devices/bus/coco/meb_rtime.h",
+		MAME_DIR .. "src/devices/bus/coco/vdgsocket.cpp",
+		MAME_DIR .. "src/devices/bus/coco/vdgsocket.h",
+	}
+
+	dependency {
+		{ MAME_DIR .. "src/devices/bus/coco/coco_vga.cpp", GEN_DIR .. "emu/layout/coco_vga.lh" },
+	}
+
+	custombuildtask {
+		layoutbuildtask("emu/layout", "coco_vga"),
 	}
 end
 

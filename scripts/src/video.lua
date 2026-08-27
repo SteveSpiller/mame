@@ -235,6 +235,29 @@ end
 
 --------------------------------------------------
 --
+--@src/devices/video/cocovga.h,VIDEOS["COCOVGA"] = true
+--------------------------------------------------
+
+if VIDEOS["COCOVGA"] then
+	files {
+		MAME_DIR .. "src/devices/video/cocovga.cpp",
+		MAME_DIR .. "src/devices/video/cocovga.h",
+		MAME_DIR .. "src/devices/video/cocovga_artifact.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_artifact.h",
+		MAME_DIR .. "src/devices/video/cocovga_capture.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_capture.h",
+		MAME_DIR .. "src/devices/video/cocovga_charrom.h",
+		MAME_DIR .. "src/devices/video/cocovga_core.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_core.h",
+		MAME_DIR .. "src/devices/video/cocovga_extended.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_extended.h",
+		MAME_DIR .. "src/devices/video/cocovga_renderer.cpp",
+		MAME_DIR .. "src/devices/video/cocovga_renderer.h",
+	}
+end
+
+--------------------------------------------------
+--
 --@src/devices/video/crt9007.h,VIDEOS["CRT9007"] = true
 --------------------------------------------------
 
@@ -926,6 +949,7 @@ if VIDEOS["MC6847"] then
 	files {
 		MAME_DIR .. "src/devices/video/mc6847.cpp",
 		MAME_DIR .. "src/devices/video/mc6847.h",
+		MAME_DIR .. "src/devices/video/mc6847_charset.h",
 	}
 end
 
